@@ -92,3 +92,7 @@ You can verify that everything is running correctly by running the tests:
 python -m unittest test_app.py
 python -m unittest test_background_jobs.py
 ```
+=======
+# Aarohan-Setu-2.0
+It is a placement portal application.
+>>>>>>> 5b8617daa4131f615c8b86261a76cae2a2fde211

@@ -1,0 +1,31 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite Database
+backend/aarohan_setu.db
+
+# Redis / Celery temporary files
+dump.rdb
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
+# Local logs and uploads
+backend/logs/
+backend/uploads/
+backend/offer_letters/
+frontend/exports/
+
+# IDE files
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

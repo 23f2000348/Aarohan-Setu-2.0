@@ -1,4 +1,3 @@
-// Options for vue3-sfc-loader to fetch and compile Single File Components (.vue)
 const options = {
     moduleCache: {
         vue: Vue
@@ -25,14 +24,14 @@ const options = {
 
 const { loadModule } = window['vue3-sfc-loader'];
 
-// Create Vue App
+// Creating Vue App
 const app = Vue.createApp({
     data() {
         return {
             currentUser: null,
             userProfile: null,
             notifications: [],
-            currentView: 'home', // 'home', 'auth', 'student', 'company', 'admin'
+            currentView: 'home',
             alertMessage: '',
             alertType: 'alert-info',
             notifInterval: null
@@ -60,7 +59,6 @@ const app = Vue.createApp({
         triggerAlert(message, type = 'info') {
             this.alertMessage = message;
             this.alertType = `alert-${type}`;
-            // Scroll to top to ensure the alert is visible
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         clearAlert() {
@@ -79,7 +77,6 @@ const app = Vue.createApp({
                     this.userProfile = data.profile;
                     this.currentView = data.user.role;
                     
-                    // Start notifications polling
                     this.startNotificationsPolling();
                 } else {
                     this.currentUser = null;
@@ -97,7 +94,6 @@ const app = Vue.createApp({
             this.currentView = user.role;
             this.triggerAlert(`Welcome back, ${profile ? profile.name : 'Administrator'}!`, 'success');
             
-            // Start notifications polling
             this.startNotificationsPolling();
         },
         async handleLogout() {
@@ -130,7 +126,6 @@ const app = Vue.createApp({
             try {
                 const res = await fetch(`/api/notifications/${notifId}/read`, { method: 'POST' });
                 if (res.ok) {
-                    // Update local notification state
                     const notif = this.notifications.find(n => n.id === notifId);
                     if (notif) notif.is_read = true;
                 }
@@ -143,7 +138,7 @@ const app = Vue.createApp({
             this.stopNotificationsPolling();
             this.notifInterval = setInterval(() => {
                 this.fetchNotifications();
-            }, 10000); // Poll every 10 seconds
+            }, 10000);
         },
         stopNotificationsPolling() {
             if (this.notifInterval) {
@@ -160,7 +155,7 @@ const app = Vue.createApp({
     }
 });
 
-// Register components dynamically using vue3-sfc-loader
+
 app.component('navigation-bar', Vue.defineAsyncComponent(() => loadModule('/components/Navbar.vue', options)));
 app.component('home-page', Vue.defineAsyncComponent(() => loadModule('/components/Home.vue', options)));
 app.component('auth-page', Vue.defineAsyncComponent(() => loadModule('/components/Auth.vue', options)));
@@ -168,5 +163,4 @@ app.component('student-dashboard', Vue.defineAsyncComponent(() => loadModule('/c
 app.component('company-dashboard', Vue.defineAsyncComponent(() => loadModule('/components/CompanyDashboard.vue', options)));
 app.component('admin-dashboard', Vue.defineAsyncComponent(() => loadModule('/components/AdminDashboard.vue', options)));
 
-// Mount the Vue application
 app.mount('#app');

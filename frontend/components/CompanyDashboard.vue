@@ -68,17 +68,17 @@
           <form @submit.prevent="saveProfile">
             <div class="mb-3">
               <label for="edit-comp-name" class="form-label">Company Name</label>
-              <input type="text" id="edit-comp-name" class="form-control" v-model="editData.name" required>
+              <input type="text" id="edit-comp-name" class="form-control" v-model="editData.name">
             </div>
             
             <div class="mb-3">
               <label for="edit-comp-contact" class="form-label">HR Contact</label>
-              <input type="text" id="edit-comp-contact" class="form-control" v-model="editData.hr_contact" required>
+              <input type="text" id="edit-comp-contact" class="form-control" v-model="editData.hr_contact">
             </div>
             
             <div class="mb-3">
               <label for="edit-comp-web" class="form-label">Website</label>
-              <input type="url" id="edit-comp-web" class="form-control" v-model="editData.website">
+              <input type="text" id="edit-comp-web" class="form-control" v-model="editData.website">
             </div>
             
             <div class="mb-3">
@@ -106,12 +106,12 @@
           <form @submit.prevent="createDrive">
             <div class="mb-3">
               <label for="drive-title" class="form-label">Job Title</label>
-              <input type="text" id="drive-title" class="form-control" v-model="driveData.job_title" placeholder="Software Engineering Intern" required>
+              <input type="text" id="drive-title" class="form-control" v-model="driveData.job_title" placeholder="Software Engineering Intern">
             </div>
 
             <div class="mb-3">
               <label for="drive-desc" class="form-label">Job Description</label>
-              <textarea id="drive-desc" class="form-control" rows="4" v-model="driveData.job_description" placeholder="Specify roles, responsibilities, and benefits..." required></textarea>
+              <textarea id="drive-desc" class="form-control" rows="4" v-model="driveData.job_description" placeholder="Specify roles, responsibilities, and benefits..."></textarea>
             </div>
 
             <div class="mb-3">
@@ -122,17 +122,17 @@
             <div class="row mb-3">
               <div class="col-6">
                 <label for="drive-cgpa" class="form-label">Min CGPA</label>
-                <input type="number" id="drive-cgpa" class="form-control" v-model="driveData.cgpa_eligibility" min="0.0" max="10.0" step="0.1" placeholder="7.5">
+                <input type="text" id="drive-cgpa" class="form-control" v-model="driveData.cgpa_eligibility" placeholder="7.5">
               </div>
               <div class="col-6">
                 <label for="drive-year" class="form-label">Grad Year</label>
-                <input type="number" id="drive-year" class="form-control" v-model="driveData.year_eligibility" min="2020" max="2035" placeholder="2026" required>
+                <input type="text" id="drive-year" class="form-control" v-model="driveData.year_eligibility" placeholder="2026">
               </div>
             </div>
 
             <div class="mb-4">
               <label for="drive-deadline" class="form-label">Application Deadline</label>
-              <input type="datetime-local" id="drive-deadline" class="form-control" v-model="driveData.deadline" required>
+              <input type="datetime-local" id="drive-deadline" class="form-control" v-model="driveData.deadline">
             </div>
 
             <button type="submit" class="btn btn-primary w-100 py-2" :disabled="creatingDrive">
@@ -270,7 +270,7 @@
                     <!-- If Shortlisted: Scheduler -->
                     <div v-if="app.status === 'Shortlisted'">
                       <div class="d-flex align-items-center gap-1">
-                        <input type="datetime-local" class="form-control form-control-xs py-1 px-2" style="font-size: 0.8rem;" v-model="interviewTimes[app.id]" required>
+                        <input type="datetime-local" class="form-control form-control-xs py-1 px-2" style="font-size: 0.8rem;" v-model="interviewTimes[app.id]">
                         <button class="btn btn-warning btn-xs py-1 text-dark" @click="scheduleInterview(app.id)">
                           <i class="fa-solid fa-calendar"></i>
                         </button>
@@ -280,15 +280,8 @@
                       </small>
                     </div>
                     
-                    <!-- If Selected: Offer Letter Generation -->
-                    <div v-else-if="app.status === 'Selected'">
-                      <button class="btn btn-success btn-xs py-1 w-100 fw-bold" @click="generateOfferLetter(app.id)" v-if="!app.offer_letter_path">
-                        <i class="fa-solid fa-file-signature"></i> Create Offer
-                      </button>
-                      <a :href="app.offer_letter_path" target="_blank" class="btn btn-outline-success btn-xs py-1 w-100 text-decoration-none" v-else>
-                        <i class="fa-solid fa-download"></i> Download Offer
-                      </a>
-                    </div>
+                    <!-- If Selected: Status only -->
+                    <span class="text-muted small" v-else-if="app.status === 'Selected'">Selected</span>
                     
                     <span class="text-muted small" v-else>-</span>
                   </td>
@@ -482,11 +475,6 @@ export default {
     },
     async scheduleInterview(appId) {
       const time = this.interviewTimes[appId];
-      if (!time) {
-        this.$emit('trigger-alert', 'Please select an interview time.', 'warning');
-        return;
-      }
-      
       try {
         const res = await fetch(`/api/company/applications/${appId}/schedule`, {
           method: 'POST',
@@ -507,27 +495,7 @@ export default {
         this.$emit('trigger-alert', 'Network error during scheduling.', 'danger');
       }
     },
-    async generateOfferLetter(appId) {
-      try {
-        const res = await fetch(`/api/company/applications/${appId}/offer-letter`, {
-          method: 'POST'
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-          this.$emit('trigger-alert', 'Offer letter generated successfully!', 'success');
-          const app = this.applicants.find(a => a.id === appId);
-          if (app) {
-            app.offer_letter_path = data.application.offer_letter_path;
-          }
-        } else {
-          this.$emit('trigger-alert', data.message || 'Failed to generate offer letter.', 'danger');
-        }
-      } catch (err) {
-        console.error(err);
-        this.$emit('trigger-alert', 'Network error during offer letter generation.', 'danger');
-      }
-    },
+
     hasResume(app) {
       // Check if resume path exists in student record (we can mock true or check return field)
       return true; // Flask api returns resume path or handles it, student profile guarantees it

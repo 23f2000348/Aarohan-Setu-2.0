@@ -69,12 +69,12 @@
           <form @submit.prevent="saveProfile">
             <div class="mb-3">
               <label for="edit-name" class="form-label">Full Name</label>
-              <input type="text" id="edit-name" class="form-control" v-model="editData.name" required>
+              <input type="text" id="edit-name" class="form-control" v-model="editData.name">
             </div>
             
             <div class="mb-3">
               <label for="edit-branch" class="form-label">Branch / Department</label>
-              <select id="edit-branch" class="form-select" v-model="editData.branch" required>
+              <select id="edit-branch" class="form-select" v-model="editData.branch">
                 <option value="Computer Science">Computer Science</option>
                 <option value="Information Technology">Information Technology</option>
                 <option value="Electronics & Communication">Electronics & Communication</option>
@@ -87,11 +87,11 @@
             <div class="row mb-3">
               <div class="col-6">
                 <label for="edit-cgpa" class="form-label">CGPA</label>
-                <input type="number" id="edit-cgpa" class="form-control" v-model="editData.cgpa" min="0.00" max="10.00" step="0.01" required>
+                <input type="text" id="edit-cgpa" class="form-control" v-model="editData.cgpa">
               </div>
               <div class="col-6">
                 <label for="edit-year" class="form-label">Grad Year</label>
-                <input type="number" id="edit-year" class="form-control" v-model="editData.graduation_year" min="2020" max="2035" required>
+                <input type="text" id="edit-year" class="form-control" v-model="editData.graduation_year">
               </div>
             </div>
             
@@ -116,7 +116,7 @@
           
           <form @submit.prevent="handleResumeUpload" enctype="multipart/form-data">
             <div class="mb-3">
-              <input type="file" ref="resumeFile" class="form-control" required @change="onFileSelected">
+              <input type="file" ref="resumeFile" class="form-control" @change="onFileSelected">
             </div>
             <button type="submit" class="btn btn-primary w-100" :disabled="uploading">
               <span v-if="uploading" class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -292,14 +292,7 @@
                           <i class="fa-solid fa-calendar-check me-1"></i> Interview: {{ formatTime(app.interview_scheduled_at) }}
                         </small>
                       </div>
-                      
-                      <!-- Display Offer Letters -->
-                      <div v-if="app.offer_letter_path">
-                        <a :href="app.offer_letter_path" target="_blank" class="btn btn-success btn-xs py-1 px-2 fw-bold text-white text-decoration-none" style="font-size: 0.8rem;">
-                          <i class="fa-solid fa-file-signature me-1"></i> Download Offer
-                        </a>
-                      </div>
-                      <span class="text-muted small" v-else-if="app.status === 'Selected'"><i class="fa-solid fa-spinner fa-spin me-1"></i> Awaiting Offer</span>
+                      <span class="text-muted small" v-if="app.status === 'Selected'">Selected</span>
                       <span class="text-muted small" v-else>-</span>
                     </td>
                   </tr>
@@ -392,15 +385,11 @@ export default {
     },
     async handleResumeUpload() {
       const fileInput = this.$refs.resumeFile;
-      if (!this.selectedFile) {
-        this.$emit('trigger-alert', 'Please select a file to upload.', 'warning');
-        return;
-      }
-      
       this.uploading = true;
       const formData = new FormData();
-      formData.append('resume', this.selectedFile);
-      
+      if (this.selectedFile) {
+        formData.append('resume', this.selectedFile);
+      }
       try {
         const res = await fetch('/api/student/resume', {
           method: 'POST',

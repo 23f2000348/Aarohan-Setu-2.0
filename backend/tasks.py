@@ -12,11 +12,11 @@ celery_app.conf.timezone = 'Asia/Kolkata'
 celery_app.conf.beat_schedule = {
     'send-daily-reminders': {
         'task': 'backend.tasks.send_daily_reminders',
-        'schedule': crontab(hour=18, minute=0),  # Run daily at 6:00 PM
+        'schedule': crontab(hour=18, minute=0),
     },
     'send-monthly-report': {
         'task': 'backend.tasks.send_monthly_activity_report',
-        'schedule': crontab(day_of_month=1, hour=9, minute=0),  # Run first day of month at 9:00 AM
+        'schedule': crontab(day_of_month=1, hour=9, minute=0),
     }
 }
 
@@ -40,17 +40,14 @@ def export_applications_csv(student_id):
         if not student:
             return f"Student {student_id} not found."
             
-        # Create exports directory in frontend static root
         exports_dir = os.path.join(app.config['BASE_DIR'], '..', 'frontend', 'exports')
         os.makedirs(exports_dir, exist_ok=True)
         
         filename = f"applications_student_{student_id}_{int(datetime.utcnow().timestamp())}.csv"
         filepath = os.path.join(exports_dir, filename)
-        
-        # Query applications
         applications = Application.query.filter_by(student_id=student_id).all()
         
-        # Write CSV
+        # Writing CSV
         with open(filepath, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(['Student ID', 'Student Name', 'Company Name', 'Drive Title', 'Application Status', 'Applied Date'])
@@ -65,14 +62,12 @@ def export_applications_csv(student_id):
                     a.applied_at.strftime('%d-%b-%Y')
                 ])
                 
-        # Create notification in database for the student
+        # Creating notification in database for student
         download_url = f"/exports/{filename}"
         notif = Notification(
             user_id=student.user_id,
             message=f"Your applications history CSV export is complete. Click here to download."
         )
-        # Store download url or reference inside message
-        # Let's save a clear message that the frontend can parse or render as a link
         notif.message = f"CSV_EXPORT_READY|{download_url}|Your application history CSV is ready for download."
         
         db.session.add(notif)
@@ -87,7 +82,6 @@ def send_daily_reminders():
     with app.app_context():
         from backend.models.db_models import db, StudentProfile, PlacementDrive, Application, Notification
         
-        # Find active approved drives closing in the next 48 hours
         now = datetime.utcnow()
         limit = now + timedelta(hours=48)
         
@@ -112,14 +106,11 @@ def send_daily_reminders():
         for drive in upcoming_drives:
             log_lines.append(f"\nDrive: {drive.job_title} at {drive.company.name} | Deadline: {drive.deadline.strftime('%d-%b-%Y %I:%M %p')}")
             
-            # Check eligibility for each student
             for s in students:
-                # Check if already applied
                 has_applied = Application.query.filter_by(student_id=s.id, drive_id=drive.id).first() is not None
                 if has_applied:
                     continue
                     
-                # Eligibility checks
                 cgpa_ok = s.cgpa >= drive.cgpa_eligibility
                 year_ok = s.graduation_year == drive.year_eligibility
                 branch_list = [b.strip().lower() for b in drive.branch_eligibility.split(',') if b.strip()]
@@ -130,8 +121,6 @@ def send_daily_reminders():
                 )
                 
                 if cgpa_ok and year_ok and branch_ok:
-                    # Eligible student who hasn't applied!
-                    # Create UI Notification alert
                     notif = Notification(
                         user_id=s.user_id,
                         message=f"Reminder: The application deadline for {drive.job_title} at {drive.company.name} is closing on {drive.deadline.strftime('%d-%b-%Y')}!"
@@ -142,7 +131,6 @@ def send_daily_reminders():
         
         db.session.commit()
         
-        # Write to log file in backend folder
         log_dir = os.path.join(app.config['BASE_DIR'], 'logs')
         os.makedirs(log_dir, exist_ok=True)
         log_path = os.path.join(log_dir, 'daily_reminders.log')
@@ -158,12 +146,10 @@ def send_monthly_activity_report():
     with app.app_context():
         from backend.models.db_models import db, User, StudentProfile, CompanyProfile, PlacementDrive, Application
         
-        # Fetch Admin
         admin_user = User.query.filter_by(role='admin').first()
         if not admin_user:
             return "Admin user not found, report generation aborted."
             
-        # Stats for the last 30 days
         now = datetime.utcnow()
         start_date = now - timedelta(days=30)
         
@@ -175,7 +161,6 @@ def send_monthly_activity_report():
             PlacementDrive.created_at >= start_date
         ).count()
         
-        # Applications and selections
         apps_submitted = Application.query.filter(
             Application.applied_at >= start_date
         ).count()
@@ -195,7 +180,7 @@ def send_monthly_activity_report():
             Application.applied_at >= start_date
         ).count()
         
-        # Generate HTML report
+        # Generating HTML report
         report_html = f"""
         <!DOCTYPE html>
         <html>
@@ -276,7 +261,7 @@ def send_monthly_activity_report():
         with open(report_path, 'w', encoding='utf-8') as f:
             f.write(report_html)
             
-        # Log mock email sending to admin
+        # Logging mock email sending to admin
         log_dir = os.path.join(app.config['BASE_DIR'], 'logs')
         os.makedirs(log_dir, exist_ok=True)
         email_log_path = os.path.join(log_dir, 'email_reports.log')

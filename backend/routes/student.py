@@ -50,16 +50,10 @@ def update_profile():
 @student_required
 def upload_resume():
     profile = current_user.student_profile
+    file = request.files.get('resume')
     
-    if 'resume' not in request.files:
-        return jsonify({'message': 'No resume file provided.'}), 400
-        
-    file = request.files['resume']
-    if file.filename == '':
-        return jsonify({'message': 'No selected file.'}), 400
-        
-    if file and Config.allowed_file(file.filename):
-        filename = f"resume_{profile.id}_{secure_filename(file.filename)}"
+    if file:
+        filename = f"resume_{profile.id}_{secure_filename(file.filename or 'resume')}"
         upload_dir = current_app.config['UPLOAD_FOLDER']
         os.makedirs(upload_dir, exist_ok=True)
         
@@ -74,7 +68,7 @@ def upload_resume():
             'resume_path': profile.resume_path
         }), 200
         
-    return jsonify({'message': 'Invalid file format. Allowed formats: PDF, DOC, DOCX.'}), 400
+    return jsonify({'message': 'No file uploaded.'}), 400
 
 
 @student_bp.route('/api/student/drives', methods=['GET'])
@@ -85,7 +79,7 @@ def get_drives():
     eligible_only = request.args.get('eligible_only', 'false').lower() == 'true'
     search_query = request.args.get('q', '').strip()
     
-    # Query approved drives
+    # Querying approved drives
     query = PlacementDrive.query.filter_by(status='Approved')
     
     if search_query:
@@ -100,12 +94,8 @@ def get_drives():
     
     result = []
     for d in drives:
-        # Check eligibility logic
-        # 1. CGPA
         cgpa_ok = profile.cgpa >= d.cgpa_eligibility
-        # 2. Year
         year_ok = profile.graduation_year == d.year_eligibility
-        # 3. Branch
         branch_eligibility_list = [b.strip().lower() for b in d.branch_eligibility.split(',') if b.strip()]
         branch_ok = (
             d.branch_eligibility.lower() == 'all' or 
@@ -115,7 +105,6 @@ def get_drives():
         
         is_eligible = cgpa_ok and year_ok and branch_ok
         
-        # Check if already applied
         has_applied = Application.query.filter_by(student_id=profile.id, drive_id=d.id).first() is not None
         
         drive_dict = d.to_dict()
@@ -148,12 +137,10 @@ def apply_to_drive(drive_id):
     if drive.deadline < datetime.utcnow():
         return jsonify({'message': 'Application deadline has passed.'}), 400
         
-    # Check if student already applied
     existing_app = Application.query.filter_by(student_id=profile.id, drive_id=drive_id).first()
     if existing_app:
         return jsonify({'message': 'You have already applied to this placement drive.'}), 400
         
-    # Eligibility validation
     cgpa_ok = profile.cgpa >= drive.cgpa_eligibility
     year_ok = profile.graduation_year == drive.year_eligibility
     branch_eligibility_list = [b.strip().lower() for b in drive.branch_eligibility.split(',') if b.strip()]
@@ -166,7 +153,6 @@ def apply_to_drive(drive_id):
     if not (cgpa_ok and year_ok and branch_ok):
         return jsonify({'message': 'You do not meet the eligibility criteria for this placement drive.'}), 403
         
-    # Resume verification
     if not profile.resume_path:
         return jsonify({'message': 'Please upload your resume before applying.'}), 400
         
@@ -179,7 +165,6 @@ def apply_to_drive(drive_id):
     db.session.add(new_app)
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         
@@ -205,7 +190,7 @@ def trigger_export():
     from backend.tasks import export_applications_csv
     profile = current_user.student_profile
     
-    # Trigger Celery async task
+    # Triggering Celery async task
     export_applications_csv.delay(profile.id)
     
     return jsonify({

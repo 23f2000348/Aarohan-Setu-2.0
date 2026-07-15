@@ -18,7 +18,6 @@ def admin_required(f):
 @login_required
 @admin_required
 def get_stats():
-    # Attempt to use Redis cache if available
     if cache:
         cached_stats = cache.get('admin_dashboard_stats')
         if cached_stats:
@@ -30,7 +29,6 @@ def get_stats():
     total_applications = Application.query.count()
     
     # Calculate placement rate (selected students / total students * 100)
-    # Ensure distinct students who are selected
     selected_students_count = db.session.query(Application.student_id).filter_by(status='Selected').distinct().count()
     placement_rate = round((selected_students_count / total_students * 100), 2) if total_students > 0 else 0.0
     
@@ -69,7 +67,7 @@ def get_stats():
     }
     
     if cache:
-        cache.set('admin_dashboard_stats', stats_data, timeout=60) # Cache for 60 seconds
+        cache.set('admin_dashboard_stats', stats_data, timeout=60)
         
     return jsonify(stats_data), 200
 
@@ -93,7 +91,6 @@ def approve_company(comp_id):
     company.is_approved = True
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         
@@ -113,7 +110,6 @@ def reject_company(comp_id):
     db.session.delete(user)
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         
@@ -213,7 +209,6 @@ def approve_drive(drive_id):
     drive.status = 'Approved'
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         
@@ -231,7 +226,6 @@ def reject_drive(drive_id):
     drive.status = 'Rejected'
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         
@@ -249,7 +243,6 @@ def close_drive(drive_id):
     drive.status = 'Closed'
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         

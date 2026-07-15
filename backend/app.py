@@ -13,14 +13,20 @@ from backend.routes.student import student_bp
 def create_app():
     app = Flask(__name__, static_folder='../frontend', static_url_path='')
     
-    
     from backend.config import Config
     app.config.from_object(Config)
     
+    for folder in [
+        app.config['UPLOAD_FOLDER'],
+        os.path.join(app.config['BASE_DIR'], 'logs'),
+        os.path.join(app.config['BASE_DIR'], 'reports'),
+        os.path.normpath(os.path.join(app.config['BASE_DIR'], '..', 'frontend', 'exports'))
+    ]:
+        os.makedirs(folder, exist_ok=True)
     
     db.init_app(app)
     
-    # Initialize Cache with automatic fallback to SimpleCache if Redis is down
+    # Initializing Cache with automatic fallback if Redis is down
     try:
         r = redis.Redis(host=app.config['CACHE_REDIS_HOST'], 
                         port=app.config['CACHE_REDIS_PORT'], 
@@ -34,7 +40,7 @@ def create_app():
         
     cache.init_app(app)
     
-    
+    # Initializing  Login Manager
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
     login_manager.init_app(app)
@@ -47,41 +53,32 @@ def create_app():
     def unauthorized():
         return jsonify({'message': 'Unauthorized. Please log in.'}), 401
         
-    
+    # Registering Blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(company_bp)
     app.register_blueprint(student_bp)
     
-    
     @app.route('/api/resumes/<filename>')
     def serve_resume(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
         
-    @app.route('/api/offer-letters/<filename>')
-    def serve_offer_letter(filename):
-        offer_dir = os.path.join(app.config['BASE_DIR'], 'offer_letters')
-        # Serve as attachment to trigger download
-        return send_from_directory(offer_dir, filename, as_attachment=True)
+
         
     @app.route('/exports/<filename>')
     def serve_export(filename):
         exports_dir = os.path.normpath(os.path.join(app.config['BASE_DIR'], '..', 'frontend', 'exports'))
         return send_from_directory(exports_dir, filename, as_attachment=True)
         
-    # Serve Frontend SPA
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_spa(path):
-        # Prevent API calls from falling back to index.html
         if path.startswith('api/'):
             return jsonify({'message': 'API endpoint not found.'}), 404
         return send_from_directory(app.static_folder, 'index.html')
         
-    
     with app.app_context():
         db.create_all()
-        
         admin = User.query.filter_by(role='admin').first()
         if not admin:
             admin = User(email='admin@aarohansetu.in', role='admin')

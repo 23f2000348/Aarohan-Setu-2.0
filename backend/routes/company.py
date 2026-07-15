@@ -52,23 +52,27 @@ def create_drive():
         return jsonify({'message': 'Your company profile is pending admin approval. You cannot create drives yet.'}), 403
         
     data = request.get_json() or {}
-    job_title = data.get('job_title')
-    job_description = data.get('job_description')
+    job_title = data.get('job_title') or ""
+    job_description = data.get('job_description') or ""
     branch_eligibility = data.get('branch_eligibility', 'All')
     cgpa_eligibility = data.get('cgpa_eligibility', 0.0)
     year_eligibility = data.get('year_eligibility')
     deadline_str = data.get('deadline')
     
-    if not all([job_title, job_description, year_eligibility, deadline_str]):
-        return jsonify({'message': 'Job Title, Description, Graduation Year eligibility and Application Deadline are required.'}), 400
-        
     try:
-        cgpa_val = float(cgpa_eligibility)
-        year_val = int(year_eligibility)
-        # Parse ISO datetime
-        deadline_val = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+        cgpa_val = float(cgpa_eligibility) if cgpa_eligibility else 0.0
     except ValueError:
-        return jsonify({'message': 'Invalid CGPA, Graduation Year, or Deadline format.'}), 400
+        cgpa_val = 0.0
+
+    try:
+        year_val = int(year_eligibility) if year_eligibility else 2026
+    except ValueError:
+        year_val = 2026
+
+    try:
+        deadline_val = datetime.fromisoformat(deadline_str.replace('Z', '+00:00')) if deadline_str else datetime.utcnow()
+    except ValueError:
+        deadline_val = datetime.utcnow()
         
     new_drive = PlacementDrive(
         company_id=profile.id,
@@ -78,13 +82,12 @@ def create_drive():
         cgpa_eligibility=cgpa_val,
         year_eligibility=year_val,
         deadline=deadline_val,
-        status='Pending'  # Must be approved by Admin
+        status='Pending'
     )
     
     db.session.add(new_drive)
     db.session.commit()
     
-    # Invalidate stats cache
     if cache:
         cache.delete('admin_dashboard_stats')
         
@@ -145,7 +148,6 @@ def update_application_status(app_id):
     db.session.add(notif)
     db.session.commit()
     
-    # Invalidate stats cache if selected
     if status == 'Selected':
         if cache:
             cache.delete('admin_dashboard_stats')
@@ -172,13 +174,10 @@ def schedule_interview(app_id):
     data = request.get_json() or {}
     interview_time_str = data.get('interview_scheduled_at')
     
-    if not interview_time_str:
-        return jsonify({'message': 'Interview date and time is required.'}), 400
-        
     try:
-        interview_time = datetime.fromisoformat(interview_time_str.replace('Z', '+00:00'))
+        interview_time = datetime.fromisoformat(interview_time_str.replace('Z', '+00:00')) if interview_time_str else datetime.utcnow()
     except ValueError:
-        return jsonify({'message': 'Invalid interview date format.'}), 400
+        interview_time = datetime.utcnow()
         
     app.interview_scheduled_at = interview_time
     
@@ -192,61 +191,5 @@ def schedule_interview(app_id):
     
     return jsonify({
         'message': 'Interview scheduled successfully.',
-        'application': app.to_dict()
-    }), 200
-
-
-@company_bp.route('/api/company/applications/<int:app_id>/offer-letter', methods=['POST'])
-@login_required
-@company_required
-def generate_offer_letter(app_id):
-    profile = current_user.company_profile
-    app = Application.query.join(PlacementDrive).filter(
-        Application.id == app_id, 
-        PlacementDrive.company_id == profile.id
-    ).first()
-    
-    if not app:
-        return jsonify({'message': 'Application not found.'}), 404
-        
-    if app.status != 'Selected':
-        return jsonify({'message': 'Offer letter can only be generated for selected students.'}), 400
-        
-    # Generate mock offer letter path/reference
-    offer_filename = f"offer_{app.student.id}_{app.drive_id}_{int(datetime.utcnow().timestamp())}.txt"
-    offer_dir = os.path.join(current_app.config['BASE_DIR'], 'offer_letters')
-    os.makedirs(offer_dir, exist_ok=True)
-    offer_path = os.path.join(offer_dir, offer_filename)
-    
-    # Write details to mock offer letter file
-    with open(offer_path, 'w', encoding='utf-8') as f:
-        f.write(f"OFFER OF PLACEMENT\n")
-        f.write(f"==================\n\n")
-        f.write(f"Date: {datetime.utcnow().strftime('%d-%B-%Y')}\n\n")
-        f.write(f"Dear {app.student.name},\n\n")
-        f.write(f"On behalf of {profile.name}, we are pleased to offer you the position of {app.drive.job_title}.\n")
-        f.write(f"We were highly impressed by your academic record (CGPA: {app.student.cgpa}) and interview performance.\n\n")
-        f.write(f"Key Terms:\n")
-        f.write(f"- Position: {app.drive.job_title}\n")
-        f.write(f"- Company: {profile.name}\n")
-        f.write(f"- HR Contact: {profile.hr_contact}\n")
-        f.write(f"- Verification Code: AAROHAN-SETU-{app.id}\n\n")
-        f.write(f"Congratulations on your selection!\n\n")
-        f.write(f"Sincerely,\n")
-        f.write(f"HR Team, {profile.name}\n")
-        f.write(f"Aarohan Setu 2.0 Placement Portal Verification\n")
-        
-    app.offer_letter_path = f"/api/offer-letters/{offer_filename}"
-    
-    # Notify Student
-    notif = Notification(
-        user_id=app.student.user_id,
-        message=f'Offer letter generated for {app.drive.job_title} at {profile.name}! You can download it now.'
-    )
-    db.session.add(notif)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Offer letter generated successfully.',
         'application': app.to_dict()
     }), 200

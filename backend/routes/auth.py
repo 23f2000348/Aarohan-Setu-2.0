@@ -7,24 +7,19 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/api/register/student', methods=['POST'])
 def register_student():
     data = request.get_json() or {}
-    email = data.get('email')
-    password = data.get('password')
-    name = data.get('name')
-    branch = data.get('branch')
+    email = data.get('email') or ""
+    password = data.get('password') or ""
+    name = data.get('name') or ""
+    branch = data.get('branch') or ""
     cgpa = data.get('cgpa')
     graduation_year = data.get('graduation_year')
     
-    if not all([email, password, name, branch, cgpa, graduation_year]):
-        return jsonify({'message': 'All fields are required.'}), 400
-        
-    if User.query.filter_by(email=email).first():
-        return jsonify({'message': 'Email already registered.'}), 400
-        
     try:
-        cgpa_val = float(cgpa)
-        grad_year_val = int(graduation_year)
+        cgpa_val = float(cgpa) if cgpa else 0.0
+        grad_year_val = int(graduation_year) if graduation_year else 2026
     except ValueError:
-        return jsonify({'message': 'Invalid CGPA or Graduation Year format.'}), 400
+        cgpa_val = 0.0
+        grad_year_val = 2026
 
     new_user = User(email=email, role='student')
     new_user.set_password(password)
@@ -52,19 +47,13 @@ def register_student():
 @auth_bp.route('/api/register/company', methods=['POST'])
 def register_company():
     data = request.get_json() or {}
-    email = data.get('email')
-    password = data.get('password')
-    name = data.get('name')
-    hr_contact = data.get('hr_contact')
-    website = data.get('website')
-    description = data.get('description')
+    email = data.get('email') or ""
+    password = data.get('password') or ""
+    name = data.get('name') or ""
+    hr_contact = data.get('hr_contact') or ""
+    website = data.get('website') or ""
+    description = data.get('description') or ""
     
-    if not all([email, password, name, hr_contact]):
-        return jsonify({'message': 'Email, password, name and HR contact are required.'}), 400
-        
-    if User.query.filter_by(email=email).first():
-        return jsonify({'message': 'Email already registered.'}), 400
-
     new_user = User(email=email, role='company')
     new_user.set_password(password)
     
@@ -90,12 +79,9 @@ def register_company():
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
-    email = data.get('email')
-    password = data.get('password')
+    email = data.get('email') or ""
+    password = data.get('password') or ""
     
-    if not email or not password:
-        return jsonify({'message': 'Email and password are required.'}), 400
-        
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
         return jsonify({'message': 'Invalid email or password.'}), 401
@@ -103,7 +89,7 @@ def login():
     if not user.is_active:
         return jsonify({'message': 'Your account has been deactivated.'}), 403
         
-    
+    # Check blacklisting
     if user.role == 'student' and user.student_profile.is_blacklisted:
         return jsonify({'message': 'Your student profile has been blacklisted.'}), 403
         

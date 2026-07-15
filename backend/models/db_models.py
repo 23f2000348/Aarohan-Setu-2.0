@@ -13,10 +13,10 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'admin', 'company', 'student'
+    role = db.Column(db.String(20), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Relationships
+    
     student_profile = db.relationship('StudentProfile', backref='user', uselist=False, cascade="all, delete-orphan")
     company_profile = db.relationship('CompanyProfile', backref='user', uselist=False, cascade="all, delete-orphan")
     notifications = db.relationship('Notification', backref='user', lazy=True, cascade="all, delete-orphan")
@@ -48,7 +48,7 @@ class StudentProfile(db.Model):
     resume_path = db.Column(db.String(256), nullable=True)
     is_blacklisted = db.Column(db.Boolean, default=False, nullable=False)
     
-    # Relationships
+    
     applications = db.relationship('Application', backref='student', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -77,7 +77,7 @@ class CompanyProfile(db.Model):
     is_approved = db.Column(db.Boolean, default=False, nullable=False)
     is_blacklisted = db.Column(db.Boolean, default=False, nullable=False)
     
-    # Relationships
+    
     drives = db.relationship('PlacementDrive', backref='company', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -101,14 +101,14 @@ class PlacementDrive(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey('company_profiles.id'), nullable=False)
     job_title = db.Column(db.String(100), nullable=False)
     job_description = db.Column(db.Text, nullable=False)
-    branch_eligibility = db.Column(db.String(256), default='All', nullable=False)  # CSV values or 'All'
+    branch_eligibility = db.Column(db.String(256), default='All', nullable=False)
     cgpa_eligibility = db.Column(db.Float, default=0.0, nullable=False)
     year_eligibility = db.Column(db.Integer, nullable=False)
     deadline = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.String(20), default='Pending', nullable=False)  # 'Pending', 'Approved', 'Rejected', 'Closed'
+    status = db.Column(db.String(20), default='Pending', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
-    # Relationships
+
     applications = db.relationship('Application', backref='drive', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -133,10 +133,9 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student_profiles.id'), nullable=False)
     drive_id = db.Column(db.Integer, db.ForeignKey('placement_drives.id'), nullable=False)
-    status = db.Column(db.String(20), default='Applied', nullable=False)  # 'Applied', 'Shortlisted', 'Selected', 'Rejected'
+    status = db.Column(db.String(20), default='Applied', nullable=False) 
     applied_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     interview_scheduled_at = db.Column(db.DateTime, nullable=True)
-    offer_letter_path = db.Column(db.String(256), nullable=True)
 
     def to_dict(self):
         return {
@@ -150,8 +149,7 @@ class Application(db.Model):
             'company_name': self.drive.company.name if self.drive and self.drive.company else '',
             'status': self.status,
             'applied_at': self.applied_at.isoformat(),
-            'interview_scheduled_at': self.interview_scheduled_at.isoformat() if self.interview_scheduled_at else None,
-            'offer_letter_path': self.offer_letter_path
+            'interview_scheduled_at': self.interview_scheduled_at.isoformat() if self.interview_scheduled_at else None
         }
 
 
